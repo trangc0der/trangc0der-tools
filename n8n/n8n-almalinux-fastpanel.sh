@@ -21,6 +21,9 @@ print_banner() {
 check_error() {
     if [ $? -ne 0 ]; then
         echo -e "${RED}Loi: $1${NC}"
+        # Doc loi tu terminal neu co van de voi stdin
+        echo -e "${RED}Nhan Enter de thoat.${NC}"
+        read < /dev/tty
         exit 1
     fi
 }
@@ -70,7 +73,7 @@ configure_n8n() {
     # Kiem tra neu docker-compose.yml da ton tai
     if [ -f "docker-compose.yml" ]; then
         echo -e -n "${YELLOW}Phat hien file docker-compose.yml cu. Ban co muon tao lai? (y/n)${NC} "
-        read -r create_new
+        read -r create_new < /dev/tty
         if [[ ! "$create_new" =~ ^[Yy]$ ]]; then
             echo -e "${CYAN}Giu lai file cu. Khoi dong lai container...${NC}"
             sudo docker-compose up -d
@@ -80,7 +83,6 @@ configure_n8n() {
     fi
 
     echo -e "${CYAN}Tao file docker-compose.yml...${NC}"
-    # Su dung cat <<-EOL de bo qua cac tab o dau dong, nhung van phai dam bao YAML khong co space thua o dau
 cat > docker-compose.yml <<EOL
 services:
   postgres:
@@ -88,9 +90,9 @@ services:
     container_name: postgres_n8n
     restart: always
     environment:
-      POSTGRES_USER: \${DB_USER}
-      POSTGRES_PASSWORD: \${DB_PASS}
-      POSTGRES_DB: \${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
       TZ: Asia/Ho_Chi_Minh
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
@@ -105,18 +107,18 @@ services:
       - "127.0.0.1:5678:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=\${N8N_USER}
-      - N8N_BASIC_AUTH_PASSWORD=\${N8N_PASS}
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASS}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres_n8n
       - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=\${DB_NAME}
-      - DB_POSTGRESDB_USER=\${DB_USER}
-      - DB_POSTGRESDB_PASSWORD=\${DB_PASS}
-      - N8N_HOST=\${DOMAIN}
+      - DB_POSTGRESDB_DATABASE=${DB_NAME}
+      - DB_POSTGRESDB_USER=${DB_USER}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASS}
+      - N8N_HOST=${DOMAIN}
       - N8N_PROTOCOL=https
       - N8N_PORT=5678
-      - WEBHOOK_URL=https://\${DOMAIN}/
+      - WEBHOOK_URL=https://${DOMAIN}/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
     depends_on:
@@ -148,39 +150,32 @@ main() {
     
     echo -e "${PURPLE}Vui long nhap cac thong tin de cau hinh n8n:${NC}"
 
+    # SU DUNG < /dev/tty DE DOC TRUC TIEP TU TERMINAL
     echo -e -n "${CYAN}Nhap domain ban se su dung (vi du: n8n.yourdomain.com): ${NC}"
-    read DOMAIN
+    read DOMAIN < /dev/tty
     
     echo -e -n "${CYAN}Nhap n8n user: ${NC}"
-    read N8N_USER
+    read N8N_USER < /dev/tty
     
     echo -e -n "${CYAN}Nhap n8n password: ${NC}"
-    read -s N8N_PASS
-    echo
+    read -s N8N_PASS < /dev/tty
+    echo # Xuong dong sau khi nhap pass
     
     echo -e -n "${CYAN}Nhap ten database (vi du: n8n_db): ${NC}"
-    read DB_NAME
+    read DB_NAME < /dev/tty
     
     echo -e -n "${CYAN}Nhap user database: ${NC}"
-    read DB_USER
+    read DB_USER < /dev/tty
     
     echo -e -n "${CYAN}Nhap mat khau database: ${NC}"
-    read -s DB_PASS
-    echo
+    read -s DB_PASS < /dev/tty
+    echo # Xuong dong sau khi nhap pass
 
     if [[ -z "$DOMAIN" || -z "$N8N_USER" || -z "$N8N_PASS" || -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" ]]; then
         echo -e "${RED}Loi: Vui long cung cap tat ca thong tin can thiet${NC}"
         exit 1
     fi
     
-    # Export de file YML co the su dung cac bien moi truong
-    # Khong can thiet neu cac bien da duoc su dung truc tiep trong EOL nhu \${VAR}
-    # export DOMAIN N8N_USER N8N_PASS DB_NAME DB_USER DB_PASS 
-    # Tuy nhien, de chac chan, cac bien trong EOL da duoc escape (\$) de bash khong thay the ngay
-    # ma de docker-compose tu xu ly (neu can) hoac la gia tri literal.
-    # Trong truong hop nay, chung ta muon bash thay the bien, nen khong can escape dau $
-    # Da sua lai EOL de su dung truc tiep bien bash.
-
     echo -e "\n${PURPLE}Bat dau qua trinh cai dat...${NC}\n"
     
     install_docker
