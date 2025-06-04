@@ -11,10 +11,10 @@ NC='\033[0m' # No Color
 
 # Hien thi banner
 print_banner() {
-    echo -e "${BLUE}*******************************************************************${NC}"
+    echo -e "${BLUE}**********************************************************************${NC}"
     echo -e "${BLUE}*** Kich ban cai dat n8n (Docker) cho may chu co FastPanel      ***${NC}"
     echo -e "${BLUE}*** Dev By MinhBee - trangc0der (modified)                      ***${NC}"
-    echo -e "${BLUE}*******************************************************************${NC}"
+    echo -e "${BLUE}**********************************************************************${NC}"
 }
 
 # Ham kiem tra va xu ly loi
@@ -64,7 +64,7 @@ configure_n8n() {
     
     # Kiem tra neu docker-compose.yml da ton tai
     if [ -f "docker-compose.yml" ]; then
-        echo -e "${YELLOW}Phat hien file docker-compose.yml cu. Ban co muon tao lai? (y/n)${NC}"
+        echo -e -n "${YELLOW}Phat hien file docker-compose.yml cu. Ban co muon tao lai? (y/n)${NC} "
         read -r create_new
         if [[ ! "$create_new" =~ ^[Yy]$ ]]; then
             echo -e "${CYAN}Giu lai file cu. Khoi dong lai container...${NC}"
@@ -141,14 +141,28 @@ main() {
     print_banner
     
     echo -e "${PURPLE}Vui long nhap cac thong tin de cau hinh n8n:${NC}"
-    read -p "$(echo -e ${CYAN}Nhap domain ban se su dung (vi du: n8n.yourdomain.com): ${NC})" DOMAIN
-    read -p "$(echo -e ${CYAN}Nhap n8n user: ${NC})" N8N_USER
-    read -s -p "$(echo -e ${CYAN}Nhap n8n password: ${NC})" N8N_PASS
+
+    # ===== PHAN DA DUOC SUA LOI =====
+    echo -e -n "${CYAN}Nhap domain ban se su dung (vi du: n8n.yourdomain.com): ${NC}"
+    read DOMAIN
+    
+    echo -e -n "${CYAN}Nhap n8n user: ${NC}"
+    read N8N_USER
+    
+    echo -e -n "${CYAN}Nhap n8n password: ${NC}"
+    read -s N8N_PASS
     echo
-    read -p "$(echo -e ${CYAN}Nhap ten database (vi du: n8n_db): ${NC})" DB_NAME
-    read -p "$(echo -e ${CYAN}Nhap user database: ${NC})" DB_USER
-    read -s -p "$(echo -e ${CYAN}Nhap mat khau database: ${NC})" DB_PASS
+    
+    echo -e -n "${CYAN}Nhap ten database (vi du: n8n_db): ${NC}"
+    read DB_NAME
+    
+    echo -e -n "${CYAN}Nhap user database: ${NC}"
+    read DB_USER
+    
+    echo -e -n "${CYAN}Nhap mat khau database: ${NC}"
+    read -s DB_PASS
     echo
+    # ===== KET THUC PHAN SUA LOI =====
 
     if [[ -z "$DOMAIN" || -z "$N8N_USER" || -z "$N8N_PASS" || -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" ]]; then
         echo -e "${RED}Loi: Vui long cung cap tat ca thong tin can thiet${NC}"
