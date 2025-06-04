@@ -32,34 +32,45 @@ check_error() {
 install_docker() {
     if command -v docker &> /dev/null; then
         echo -e "${GREEN}Docker da duoc cai dat.${NC}"
-        return 0
+    else
+        echo -e "${YELLOW}Dang cai dat Docker...${NC}"
+        
+        sudo dnf install -y dnf-utils
+        check_error "Khong the cai dat dnf-utils"
+        sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        check_error "Khong the them Docker repo"
+        sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        check_error "Khong the cai dat Docker (bao gom docker-compose-plugin)"
+        
+        sudo systemctl enable docker
+        check_error "Khong the kich hoat Docker service"
+        sudo systemctl start docker
+        check_error "Khong the khoi dong Docker service"
+        
+        echo -e "${CYAN}Dang cho Docker khoi dong...${NC}"
+        timeout 30s bash -c 'until sudo docker info &>/dev/null; do sleep 2; done'
+        check_error "Docker khong khoi dong duoc sau 30 giay"
+        
+        echo -e "${GREEN}Docker da san sang!${NC}"
     fi
 
-    echo -e "${YELLOW}Dang cai dat Docker va Docker Compose...${NC}"
-    
-    sudo dnf install -y dnf-utils
-    check_error "Khong the cai dat dnf-utils"
-    sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    check_error "Khong the them Docker repo"
-    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    check_error "Khong the cai dat Docker"
-    
-    # Cai dat Docker Compose (standalone de dam bao tuong thich)
-    sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    check_error "Khong the tai Docker Compose"
-    sudo chmod +x /usr/local/bin/docker-compose
-    check_error "Khong the cap quyen thuc thi cho Docker Compose"
-    
-    sudo systemctl enable docker
-    check_error "Khong the kich hoat Docker service"
-    sudo systemctl start docker
-    check_error "Khong the khoi dong Docker service"
-    
-    echo -e "${CYAN}Dang cho Docker khoi dong...${NC}"
-    timeout 30s bash -c 'until sudo docker info &>/dev/null; do sleep 2; done'
-    check_error "Docker khong khoi dong duoc sau 30 giay"
-    
-    echo -e "${GREEN}Docker va Docker Compose da san sang!${NC}"
+    # Kiem tra va cai dat Docker Compose standalone neu docker compose (plugin) khong chay voi sudo
+    # hoac neu docker-compose (standalone) chua co
+    if ! sudo docker compose version &>/dev/null || ! command -v /usr/local/bin/docker-compose &>/dev/null ; then
+        echo -e "${YELLOW}Dang cai dat/kiem tra Docker Compose (standalone)...${NC}"
+        sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        check_error "Khong the tai Docker Compose (standalone)"
+        sudo chmod +x /usr/local/bin/docker-compose
+        check_error "Khong the cap quyen thuc thi cho Docker Compose (standalone)"
+        echo -e "${GREEN}Docker Compose (standalone) da san sang tai /usr/local/bin/docker-compose!${NC}"
+    else
+        if sudo docker compose version &>/dev/null; then
+             echo -e "${GREEN}Docker Compose plugin (docker compose) da duoc cai dat va chay duoc voi sudo.${NC}"
+        fi
+        if command -v /usr/local/bin/docker-compose &>/dev/null; then
+            echo -e "${GREEN}Docker Compose (standalone) da duoc cai dat tai /usr/local/bin/docker-compose.${NC}"
+        fi
+    fi
 }
 
 # Ham cau hinh va khoi chay n8n
@@ -76,7 +87,14 @@ configure_n8n() {
         read -r create_new < /dev/tty
         if [[ ! "$create_new" =~ ^[Yy]$ ]]; then
             echo -e "${CYAN}Giu lai file cu. Khoi dong lai container...${NC}"
-            sudo docker-compose up -d
+            # Thu voi docker compose plugin truoc, neu loi thi dung standalone
+            if sudo docker compose version &>/dev/null; then
+                sudo docker compose up -d
+            elif command -v /usr/local/bin/docker-compose &>/dev/null; then
+                sudo /usr/local/bin/docker-compose up -d
+            else
+                check_error "Khong tim thay lenh docker compose hoac docker-compose."
+            fi
             check_error "Khoi dong lai container that bai."
             return
         fi
@@ -137,7 +155,14 @@ volumes:
 EOL
     
     echo -e "${CYAN}Khoi chay n8n va postgres...${NC}"
-    sudo docker-compose up -d
+    # Thu voi docker compose plugin truoc, neu loi thi dung standalone
+    if sudo docker compose version &>/dev/null; then
+        sudo docker compose up -d
+    elif command -v /usr/local/bin/docker-compose &>/dev/null; then
+        sudo /usr/local/bin/docker-compose up -d
+    else
+        check_error "Khong tim thay lenh docker compose hoac docker-compose de khoi chay container."
+    fi
     check_error "Khong the khoi chay cac container"
     
     echo -e "${GREEN}Cai dat container n8n thanh cong!${NC}"
