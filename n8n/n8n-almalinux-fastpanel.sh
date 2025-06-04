@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 print_banner() {
     echo -e "${BLUE}**********************************************************************${NC}"
     echo -e "${BLUE}*** Kich ban cai dat n8n (Docker) cho may chu co FastPanel      ***${NC}"
-    echo -e "${BLUE}*** Dev By MinhBee - trangc0der (modified)                      ***${NC}"
+    echo -e "${BLUE}*** Dev By trangc0der - MinhBee (modified)                     ***${NC}"
     echo -e "${BLUE}**********************************************************************${NC}"
 }
 
@@ -35,21 +35,26 @@ install_docker() {
     echo -e "${YELLOW}Dang cai dat Docker va Docker Compose...${NC}"
     
     sudo dnf install -y dnf-utils
+    check_error "Khong the cai dat dnf-utils"
     sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    check_error "Khong the them Docker repo"
     sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     check_error "Khong the cai dat Docker"
     
     # Cai dat Docker Compose (standalone de dam bao tuong thich)
     sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    check_error "Khong the tai Docker Compose"
     sudo chmod +x /usr/local/bin/docker-compose
-    check_error "Khong the cai dat Docker Compose"
+    check_error "Khong the cap quyen thuc thi cho Docker Compose"
     
     sudo systemctl enable docker
+    check_error "Khong the kich hoat Docker service"
     sudo systemctl start docker
+    check_error "Khong the khoi dong Docker service"
     
     echo -e "${CYAN}Dang cho Docker khoi dong...${NC}"
     timeout 30s bash -c 'until sudo docker info &>/dev/null; do sleep 2; done'
-    check_error "Docker khong khoi dong duoc"
+    check_error "Docker khong khoi dong duoc sau 30 giay"
     
     echo -e "${GREEN}Docker va Docker Compose da san sang!${NC}"
 }
@@ -75,16 +80,17 @@ configure_n8n() {
     fi
 
     echo -e "${CYAN}Tao file docker-compose.yml...${NC}"
-    cat > docker-compose.yml <<EOL
+    # Su dung cat <<-EOL de bo qua cac tab o dau dong, nhung van phai dam bao YAML khong co space thua o dau
+cat > docker-compose.yml <<EOL
 services:
   postgres:
     image: postgres:15
     container_name: postgres_n8n
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: \${DB_USER}
+      POSTGRES_PASSWORD: \${DB_PASS}
+      POSTGRES_DB: \${DB_NAME}
       TZ: Asia/Ho_Chi_Minh
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
@@ -99,18 +105,18 @@ services:
       - "127.0.0.1:5678:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASS}
+      - N8N_BASIC_AUTH_USER=\${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=\${N8N_PASS}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres_n8n
       - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${DB_NAME}
-      - DB_POSTGRESDB_USER=${DB_USER}
-      - DB_POSTGRESDB_PASSWORD=${DB_PASS}
-      - N8N_HOST=${DOMAIN}
+      - DB_POSTGRESDB_DATABASE=\${DB_NAME}
+      - DB_POSTGRESDB_USER=\${DB_USER}
+      - DB_POSTGRESDB_PASSWORD=\${DB_PASS}
+      - N8N_HOST=\${DOMAIN}
       - N8N_PROTOCOL=https
       - N8N_PORT=5678
-      - WEBHOOK_URL=https://${DOMAIN}/
+      - WEBHOOK_URL=https://\${DOMAIN}/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
     depends_on:
@@ -137,12 +143,11 @@ EOL
 
 # Ham chinh
 main() {
-    set -e
+    set -e # Thoat ngay neu co loi
     print_banner
     
     echo -e "${PURPLE}Vui long nhap cac thong tin de cau hinh n8n:${NC}"
 
-    # ===== PHAN DA DUOC SUA LOI =====
     echo -e -n "${CYAN}Nhap domain ban se su dung (vi du: n8n.yourdomain.com): ${NC}"
     read DOMAIN
     
@@ -162,16 +167,20 @@ main() {
     echo -e -n "${CYAN}Nhap mat khau database: ${NC}"
     read -s DB_PASS
     echo
-    # ===== KET THUC PHAN SUA LOI =====
 
     if [[ -z "$DOMAIN" || -z "$N8N_USER" || -z "$N8N_PASS" || -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" ]]; then
         echo -e "${RED}Loi: Vui long cung cap tat ca thong tin can thiet${NC}"
         exit 1
     fi
     
-    # Export de file YML co the su dung
-    export DOMAIN N8N_USER N8N_PASS DB_NAME DB_USER DB_PASS
-    
+    # Export de file YML co the su dung cac bien moi truong
+    # Khong can thiet neu cac bien da duoc su dung truc tiep trong EOL nhu \${VAR}
+    # export DOMAIN N8N_USER N8N_PASS DB_NAME DB_USER DB_PASS 
+    # Tuy nhien, de chac chan, cac bien trong EOL da duoc escape (\$) de bash khong thay the ngay
+    # ma de docker-compose tu xu ly (neu can) hoac la gia tri literal.
+    # Trong truong hop nay, chung ta muon bash thay the bien, nen khong can escape dau $
+    # Da sua lai EOL de su dung truc tiep bien bash.
+
     echo -e "\n${PURPLE}Bat dau qua trinh cai dat...${NC}\n"
     
     install_docker
@@ -183,7 +192,7 @@ main() {
     echo -e "Thong tin cua ban:"
     echo -e "${CYAN}Domain:${NC} https://${DOMAIN}"
     echo -e "${CYAN}n8n User:${NC} ${N8N_USER}"
-    echo -e "${CYAN}n8n Pass:${NC} *******"
+    echo -e "${CYAN}n8n Pass:${NC} ******* (Da an)"
     echo -e "${YELLOW}n8n dang chay tai dia chi local: http://127.0.0.1:5678${NC}"
     echo -e "\n${RED}VIEC CAN LAM TIEP THEO:${NC}"
     echo -e "${PURPLE}==> Thuc hien cac buoc cau hinh Reverse Proxy trong FastPanel!${NC}"
