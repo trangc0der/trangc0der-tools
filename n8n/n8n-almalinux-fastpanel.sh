@@ -149,6 +149,7 @@ services:
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false # Bo qua canh bao quyen file config
+      - N8N_RUNNERS_ENABLED=true # Bat task runners theo khuyen nghi
     depends_on:
       - postgres
     volumes:
