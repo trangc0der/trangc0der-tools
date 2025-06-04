@@ -14,7 +14,7 @@ print_banner() {
     echo -e "${BLUE}****************************************************************************************${NC}"
     echo -e "${BLUE}******                                                                          ********${NC}"
     echo -e "${BLUE}******                 File bash ho tro cau hinh n8n tu dong                    ********${NC}"
-    echo -e "${BLUE}******              Dev By MinhBee - trangc0der (modified)                      ********${NC}"
+    echo -e "${BLUE}******              Dev By trangc0der - MinhBee (modified)                      ********${NC}"
     echo -e "${BLUE}******          Phien ban ho tro ubuntu, su dung docker va PostgreSQL           ********${NC}"
     echo -e "${BLUE}******                                                                          ********${NC}"
     echo -e "${BLUE}****************************************************************************************${NC}"
