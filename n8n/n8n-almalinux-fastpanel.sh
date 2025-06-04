@@ -105,8 +105,10 @@ configure_n8n() {
     
     cd ~/n8n_data || { echo -e "${RED}Khong tim thay thu muc ~/n8n_data. Tao moi..."; mkdir -p ~/n8n_data; cd ~/n8n_data || exit 1; }
 
-    # Hoi nguoi dung co muon xoa data cu khong
-    cleanup_services_data
+    # Hoi nguoi dung co muon xoa data cu khong neu file docker-compose.yml da ton tai
+    if [ -f "docker-compose.yml" ]; then
+        cleanup_services_data
+    fi
 
     # Luon tao lai file docker-compose.yml de dam bao cau hinh moi nhat
     echo -e "${CYAN}Tao/Cap nhat file docker-compose.yml...${NC}"
@@ -131,7 +133,9 @@ services:
     container_name: n8n
     restart: always
     ports:
-      - "127.0.0.1:5678:5678"
+      # HOST_PORT:CONTAINER_PORT
+      # May chu se lang nghe o 127.0.0.1:5555, va chuyen den cong 5678 cua container n8n
+      - "127.0.0.1:5555:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_USER}
@@ -142,10 +146,10 @@ services:
       - DB_POSTGRESDB_DATABASE=${DB_NAME}
       - DB_POSTGRESDB_USER=${DB_USER}
       - DB_POSTGRESDB_PASSWORD=${DB_PASS}
-      - N8N_HOST=${DOMAIN}
-      - N8N_PROTOCOL=https
-      - N8N_PORT=5678
-      - WEBHOOK_URL=https://${DOMAIN}/
+      - N8N_HOST=${DOMAIN} # Ten mien ben ngoai, vd: n8n.vinatheme.io.vn
+      - N8N_PROTOCOL=https # Giao thuc ben ngoai
+      - N8N_PORT=5678 # Cong ma n8n lang nghe BEN TRONG container
+      - WEBHOOK_URL=https://${DOMAIN}/ # URL webhook ben ngoai
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false # Bo qua canh bao quyen file config
@@ -161,14 +165,14 @@ networks:
   n8n-network:
 
 volumes:
-  postgres_data: # Docker se tu tao volume nay neu no la named volume
-  n8n_local_data: # Tuong tu
+  postgres_data: 
+  n8n_local_data: 
 EOL
     
     # Tao thu muc data tren host NEU CHUA CO va set quyen
     echo -e "${CYAN}Dam bao quyen cho thu muc data...${NC}"
     if [ ! -d "./n8n_local_data" ]; then
-        mkdir -p ./n8n_local_data # Them -p de tao neu parent chua co
+        mkdir -p ./n8n_local_data 
         check_error "Khong the tao thu muc ./n8n_local_data"
     fi
     sudo chown -R 1000:1000 ./n8n_local_data
@@ -178,11 +182,10 @@ EOL
         mkdir -p ./postgres_data
         check_error "Khong the tao thu muc ./postgres_data"
     fi
-    # Khong can chown cho postgres_data, image postgres tu xu ly
 
     echo -e "${CYAN}Khoi chay/khoi dong lai n8n va postgres...${NC}"
     if sudo docker compose version &>/dev/null; then
-        sudo docker compose up -d --remove-orphans --force-recreate # Them --force-recreate de dam bao container postgres duoc tao lai
+        sudo docker compose up -d --remove-orphans --force-recreate 
     elif command -v /usr/local/bin/docker-compose &>/dev/null; then
         sudo /usr/local/bin/docker-compose up -d --remove-orphans --force-recreate
     else
@@ -196,7 +199,7 @@ EOL
 
 # Ham chinh
 main() {
-    set -e # Thoat ngay neu co loi
+    set -e 
     print_banner
     
     echo -e "${PURPLE}Vui long nhap cac thong tin de cau hinh n8n:${NC}"
@@ -226,7 +229,6 @@ main() {
         exit 1
     fi
     
-    # Export bien de docker-compose.yml co the su dung
     export DB_USER DB_PASS DB_NAME N8N_USER N8N_PASS DOMAIN
 
     echo -e "\n${PURPLE}Bat dau qua trinh cai dat...${NC}\n"
@@ -244,9 +246,9 @@ main() {
     echo -e "${CYAN}DB User:${NC} ${DB_USER}"
     echo -e "${CYAN}DB Pass:${NC} ******* (Da an)"
     echo -e "${CYAN}DB Name:${NC} ${DB_NAME}"
-    echo -e "${YELLOW}n8n dang chay tai dia chi local: http://127.0.0.1:5678${NC}"
+    echo -e "${YELLOW}n8n dang chay tai dia chi local: http://127.0.0.1:5555${NC}" # <-- THAY DOI O DAY
     echo -e "\n${RED}VIEC CAN LAM TIEP THEO:${NC}"
-    echo -e "${PURPLE}==> Thuc hien cac buoc cau hinh Reverse Proxy trong FastPanel!${NC}"
+    echo -e "${PURPLE}==> Thuc hien cac buoc cau hinh Reverse Proxy trong FastPanel (proxy_pass den port 5555)!${NC}"
     echo -e "${PURPLE}==> Kiem tra log Docker neu gap su co: sudo docker logs n8n${NC}"
     echo -e "${PURPLE}==> Doi vai phut de PostgreSQL khoi tao, sau do kiem tra lai.${NC}"
 }
