@@ -1,40 +1,60 @@
-# trangc0der-tools
+This guide explains how to use the `remove-postgres.sh` script to completely uninstall PostgreSQL and all its data from your system.
 
-Đây là một bộ sưu tập các script dòng lệnh (shell script) hữu ích để tự động hóa các tác vụ quản trị hệ thống (SysAdmin) trên các bản phân phối Linux dựa trên RHEL như AlmaLinux, Rocky Linux, CentOS.
-
-## Yêu cầu
-
-- Hệ điều hành: **AlmaLinux 8 / Rocky Linux 8 / CentOS 8**
-- Quyền `sudo` để thực thi các tác vụ quản trị.
-- Các công cụ `curl` hoặc `git` đã được cài đặt sẵn trên hệ thống.
-
-## Hướng dẫn sử dụng
-
-#### Gỡ cài đặt PostgreSQL
-
-Script này sẽ gỡ cài đặt hoàn toàn PostgreSQL, bao gồm các gói phần mềm, thư mục dữ liệu (`/var/lib/pgsql`), và người dùng hệ thống `postgres`.
-
-**Lệnh thực thi:**
-
-```bash
-curl -sSL [https://raw.githubusercontent.com/trangc0der/trangc0der-tools/main/postgres/remove-postgres/remove-postgres.sh](https://raw.githubusercontent.com/trangc0der/trangc0der-tools/main/postgres/remove-postgres/remove-postgres.sh) | sudo bash
-```
+> ### ⚠️ **WARNING: PERMANENT DATA LOSS**
+>
+> This script is designed to **permanently and completely remove** PostgreSQL from your system. It will delete:
+>
+> - All PostgreSQL databases and their data.
+> - All related software packages.
+> - The dedicated `postgres` system user.
+>
+> **Ensure you have backed up any critical data before running this script**.
 
 ---
 
-## ⚠️ Cảnh báo quan trọng
+### **Compatibility**
 
-> **CÁC SCRIPT NÀY CÓ TÍNH CHẤT PHÁ HỦY DỮ LIỆU.**
->
-> - Chúng được thiết kế để **XÓA SẠCH** phần mềm và dữ liệu liên quan khỏi hệ thống của bạn.
-> - Hành động này **KHÔNG THỂ HOÀN TÁC**.
-> - Luôn luôn **SAO LƯU (BACKUP)** dữ liệu quan trọng trước khi chạy bất kỳ script nào trong bộ công cụ này.
-> - Hãy đọc kỹ nội dung script trước khi thực thi để hiểu rõ nó sẽ làm gì trên hệ thống của bạn.
+This script is specifically designed for **AlmaLinux 8.x** and other Linux distributions that use the `dnf` package manager (like CentOS, Fedora, or RHEL).
 
-## Đóng góp
+---
 
-Nếu bạn có ý tưởng cải thiện hoặc muốn đóng góp thêm các công cụ mới, vui lòng tạo một "Issue" để thảo luận hoặc một "Pull Request" để gửi mã nguồn của bạn. Mọi sự đóng góp đều được chào đón!
+### **How to Use**
 
-## Giấy phép
+#### **Step 1: Download the Script**
 
-Dự án này được cấp phép theo Giấy phép MIT.
+Connect to your server via SSH and download the script from its GitHub repository.
+
+```bash
+wget https://raw.githubusercontent.com/trangc0der/trangc0der-tools/main/postgres/remove-postgres/remove-postgres.sh
+```
+
+#### **Step 2: Make the Script Executable**
+
+Grant execute permissions to the downloaded file.
+
+```bash
+chmod +x remove-postgres.sh
+```
+
+#### **Step 3: Run the Script**
+
+Execute the script with `sudo` privileges, which are required to stop services and remove system files and packages.
+
+```bash
+sudo ./remove-postgres.sh
+```
+
+The script will run automatically without further prompts, showing its progress at each stage.
+
+---
+
+### **The Removal Process**
+
+The script performs the following four steps to ensure a complete and clean uninstallation:
+
+1.  **Stop and Disable PostgreSQL Services**: It first finds any running PostgreSQL services, stops them, and disables them so they don't start on the next boot.
+2.  **Uninstall PostgreSQL Packages**: The script uses `dnf` to remove all packages related to PostgreSQL, including the server, libraries, and any additional modules.
+3.  **Delete Data and Configuration**: It then permanently deletes the `/var/lib/pgsql` directory, which contains all of your databases and configuration files.
+4.  **Remove the 'postgres' User**: Finally, it removes the `postgres` system user that was created during the initial installation.
+
+Once finished, the script will display a confirmation message: `✅ Quá trình gỡ cài đặt PostgreSQL đã hoàn tất!`.

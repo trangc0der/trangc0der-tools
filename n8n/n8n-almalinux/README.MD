@@ -1,84 +1,78 @@
-# Guide: Automated n8n Installation on Ubuntu
+### **Guide: Automated n8n Installation on AlmaLinux**
 
-This script provides a comprehensive, automated solution for installing n8n on a fresh Ubuntu server. It handles everything from dependency installation to final configuration, including setting up Docker, a PostgreSQL database, an Nginx reverse proxy, and a free SSL certificate from Let's Encrypt.
+This script provides a comprehensive, automated solution for installing n8n on a server running AlmaLinux 8+ (or a similar RHEL-based distribution). It handles the entire process, including installing dependencies, setting up Docker with PostgreSQL, configuring an Nginx reverse proxy, and securing the site with a free Let's Encrypt SSL certificate.
 
-### Key Features
+### **Key Features**
 
-- **DNS Validation**: Automatically checks if your domain correctly points to the server's IP address before starting.
-- **Previous Installation Cleanup**: Detects and offers to completely remove any previous n8n installations to prevent conflicts.
-- **Automatic Dependency Management**: Installs and configures all necessary packages, including Nginx, Docker, and Docker Compose.
-- **Automated Nginx Reverse Proxy**: Creates and enables the Nginx configuration to proxy traffic to the n8n application.
-- **Automated SSL**: Uses `certbot` to install a Let's Encrypt SSL certificate for your domain and configures Nginx for HTTPS, including setting up auto-renewal.
-- **Two Setup Modes**:
-  - **Manual Mode**: You provide all your credentials.
-  - **Automatic Mode**: The script generates secure credentials for you, perfect for a quick setup.
-- **Health Checks**: Performs post-install checks to ensure the n8n container is running and can connect to the database.
+- **Targeted for AlmaLinux**: Uses the `dnf` package manager and installs necessary repositories like EPEL.
+- **DNS Validation**: Before starting, it automatically verifies that your domain correctly points to the server's IP address.
+- **SELinux Aware**: The script detects if SELinux is enabled and applies the necessary policy to allow Nginx to make network connections, preventing common "502 Bad Gateway" errors.
+- **Full Cleanup**: Can detect and completely remove any previous n8n installations to ensure a clean slate.
+- **Automated Nginx & SSL**: Automatically creates the Nginx reverse proxy configuration and uses `certbot` to install and auto-renew a Let's Encrypt SSL certificate.
+- **Dual Setup Modes**:
+  - **Manual Mode**: Allows you to input all your custom credentials.
+  - **Automatic Mode**: Generates all necessary credentials for you for a fast and easy setup.
+- **Post-Install Health Check**: Verifies that the n8n container is running and successfully connected to the database after installation.
 
-### Prerequisites
+### **Prerequisites**
 
-- A server running **Ubuntu**.
+- A server running **AlmaLinux 8+** or a similar RHEL-based OS (like Rocky Linux or CentOS).
 - `sudo` or `root` access.
-- A **domain name** (e.g., `n8n.yourcompany.com`) with its DNS 'A' record already pointed to your server's public IP address. The script will verify this.
+- A **domain name** (e.g., `n8n.your-domain.com`) with its DNS 'A' record already pointed to your server's public IP address.
 
 ---
 
-## How to Use
+### **How to Use**
 
-### Step 1: Download the Script
+#### **Step 1: Download the Script**
 
 Connect to your server via SSH and download the script using `wget`.
 
 ```bash
-wget https://raw.githubusercontent.com/trangc0der/trangc0der-tools/main/n8n/n8n-ubuntu/n8n-ubuntu.sh
+wget https://raw.githubusercontent.com/trangc0der/trangc0der-tools/main/n8n/n8n-almalinux/n8n-almalinux.sh
 ```
 
-### Step 2: Make the Script Executable
+#### **Step 2: Make the Script Executable**
 
 Grant execute permissions to the downloaded file.
 
 ```bash
-chmod +x n8n-ubuntu.sh
+chmod +x n8n-almalinux.sh
 ```
 
-### Step 3: Run the Script
+#### **Step 3: Run the Script**
 
 Execute the script with `sudo` to begin the installation.
 
 ```bash
-sudo ./n8n-ubuntu.sh
+sudo ./n8n-almalinux.sh
 ```
 
-### Step 4: Follow the On-Screen Prompts
+#### **Step 4: Follow the On-Screen Prompts**
 
-The script is interactive and will guide you through the process:
+The script is interactive and will guide you through the setup:
 
-1.  **Previous Installation Check**: If the script detects an existing n8n setup, it will ask if you want to clean it before proceeding.
-2.  **Domain Name**: You will be prompted to enter your domain name. The script will then perform a DNS check. If it fails, you can choose to re-check, ignore the warning (if you are sure the DNS is correct but hasn't propagated yet), or cancel.
+1.  **Previous Installation Check**: If an existing n8n setup is found, the script will ask if you want to perform a full cleanup before proceeding.
+2.  **Domain Name**: Enter your domain name when prompted. The script will then perform a DNS check to validate it. If the check fails, you can choose to re-check, ignore the warning, or cancel the installation.
 3.  **Installation Mode**: Choose between two modes:
-    - **Manual Mode (1)**: You will be asked to enter an email for SSL registration, a username/password for n8n, and credentials for the PostgreSQL database.
-    - **Automatic Mode (2)**: The script will automatically generate all necessary credentials based on your domain and server IP. It will display the generated credentials for you to save.
+    - **Manual Mode (1)**: You will be prompted to enter an email for SSL registration, a username/password for n8n, and credentials for the PostgreSQL database.
+    - **Automatic Mode (2)**: The script will automatically generate all credentials based on your domain and server IP. It will display the generated information for you to save.
 
-The script will then proceed with the full installation and configuration automatically.
+The script will then handle the entire installation process automatically.
 
-### Post-Installation
+### **Post-Installation**
 
-Once the script is finished, you will see a summary of all your configuration details and credentials.
+After the script completes, it will display a summary of your configuration details and credentials.
 
-- **Access Your n8n Instance**: You can now access n8n by navigating to your domain in a web browser: `https://your-domain.com`.
+- **Access Your n8n Instance**: You can now access your n8n instance by navigating to your domain in a web browser: `https://your-domain.com`
 - **Log In**: Use the n8n username and password that were either provided by you (Manual Mode) or generated by the script (Automatic Mode).
 
-### Managing Your n8n Instance
+### **Managing Your n8n Instance**
 
-The script provides helpful commands for managing your application at the end of the output.
-
-- **Configuration Directory**: All n8n and PostgreSQL data and configuration files are located in `~/n8n_data`.
+- **Configuration Directory**: All n8n and PostgreSQL data and configuration files are located in the `~/n8n_data` directory.
 - **View n8n Logs**:
   ```bash
   docker logs n8n
-  ```
-- **View PostgreSQL Logs**:
-  ```bash
-  docker logs postgres
   ```
 - **Restart n8n**:
   ```bash
@@ -89,7 +83,6 @@ The script provides helpful commands for managing your application at the end of
   docker stop n8n
   docker start n8n
   ```
-- **Restart Both Services**: If you experience database connection issues, restart both containers.
-  ```bash
-  docker restart postgres n8n
-  ```
+- **Troubleshooting**:
+  - For database connection issues, try restarting both services: `docker restart postgres n8n`
+  - If you encounter a **502 Bad Gateway** error, it may be related to SELinux. You can try running: `sudo setsebool -P httpd_can_network_connect 1` and then restart Nginx.
