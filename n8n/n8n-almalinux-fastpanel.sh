@@ -86,21 +86,16 @@ configure_n8n() {
         echo -e -n "${YELLOW}Phat hien file docker-compose.yml cu. Ban co muon tao lai? (y/n)${NC} "
         read -r create_new < /dev/tty
         if [[ ! "$create_new" =~ ^[Yy]$ ]]; then
-            echo -e "${CYAN}Giu lai file cu. Khoi dong lai container...${NC}"
-            # Thu voi docker compose plugin truoc, neu loi thi dung standalone
-            if sudo docker compose version &>/dev/null; then
-                sudo docker compose up -d
-            elif command -v /usr/local/bin/docker-compose &>/dev/null; then
-                sudo /usr/local/bin/docker-compose up -d
-            else
-                check_error "Khong tim thay lenh docker compose hoac docker-compose."
-            fi
-            check_error "Khoi dong lai container that bai."
-            return
+            echo -e "${CYAN}Giu lai file cu.${NC}"
+            # Khong lam gi ca, se khoi dong lai o duoi
+        else
+             echo -e "${CYAN}Se tao lai file docker-compose.yml.${NC}"
         fi
     fi
 
-    echo -e "${CYAN}Tao file docker-compose.yml...${NC}"
+    # Chi tao file docker-compose.yml neu khong ton tai hoac nguoi dung chon tao lai
+    if [ ! -f "docker-compose.yml" ] || [[ "$create_new" =~ ^[Yy]$ ]]; then
+        echo -e "${CYAN}Tao file docker-compose.yml...${NC}"
 cat > docker-compose.yml <<EOL
 services:
   postgres:
@@ -139,10 +134,13 @@ services:
       - WEBHOOK_URL=https://${DOMAIN}/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
+      # Them bien moi truong de n8n biet UID/GID cua user tren host de su dung cho volume
+      # Tuy nhien, cach tot hon la chown thu muc tren host
     depends_on:
       - postgres
     volumes:
-      - ./n8n_local_data:/home/node/.n8n
+      - ./n8n_local_data:/home/node/.n8n 
+      # Quan trong: /home/node/.n8n la noi n8n luu tru data ben trong container
     networks:
       - n8n-network
 
@@ -151,21 +149,40 @@ networks:
 
 volumes:
   postgres_data:
-  n8n_local_data:
+  n8n_local_data: 
+  # Khai bao volume o day de Docker quan ly, nhung chung ta dang dung bind mount
+  # Voi bind mount, Docker se tao thu muc tren host neu chua co, voi quyen root
+  # Do do can chown sau do
 EOL
+    fi
     
-    echo -e "${CYAN}Khoi chay n8n va postgres...${NC}"
+    # Tao thu muc data tren host NEU CHUA CO va set quyen
+    echo -e "${CYAN}Dam bao quyen cho thu muc data...${NC}"
+    if [ ! -d "./n8n_local_data" ]; then
+        mkdir ./n8n_local_data
+        check_error "Khong the tao thu muc ./n8n_local_data"
+    fi
+    sudo chown -R 1000:1000 ./n8n_local_data
+    check_error "Khong the thay doi quyen so huu cho ./n8n_local_data (cho user UID 1000)"
+
+    if [ ! -d "./postgres_data" ]; then
+        mkdir ./postgres_data
+        check_error "Khong the tao thu muc ./postgres_data"
+    fi
+    # Docker image cua Postgres thuong tu quan ly quyen cho volume data cua no.
+
+    echo -e "${CYAN}Khoi chay/khoi dong lai n8n va postgres...${NC}"
     # Thu voi docker compose plugin truoc, neu loi thi dung standalone
     if sudo docker compose version &>/dev/null; then
-        sudo docker compose up -d
+        sudo docker compose up -d --remove-orphans
     elif command -v /usr/local/bin/docker-compose &>/dev/null; then
-        sudo /usr/local/bin/docker-compose up -d
+        sudo /usr/local/bin/docker-compose up -d --remove-orphans
     else
         check_error "Khong tim thay lenh docker compose hoac docker-compose de khoi chay container."
     fi
     check_error "Khong the khoi chay cac container"
     
-    echo -e "${GREEN}Cai dat container n8n thanh cong!${NC}"
+    echo -e "${GREEN}Cai dat/Khoi dong container n8n thanh cong!${NC}"
 }
 
 # Ham chinh
@@ -216,6 +233,7 @@ main() {
     echo -e "${YELLOW}n8n dang chay tai dia chi local: http://127.0.0.1:5678${NC}"
     echo -e "\n${RED}VIEC CAN LAM TIEP THEO:${NC}"
     echo -e "${PURPLE}==> Thuc hien cac buoc cau hinh Reverse Proxy trong FastPanel!${NC}"
+    echo -e "${PURPLE}==> Kiem tra log Docker neu gap su co: sudo docker logs n8n${NC}"
 }
 
 main
