@@ -1,7 +1,3 @@
-Of course, here is the user guide for the script, written in English.
-
----
-
 # Guide to Installing n8n on AlmaLinux with FastPanel using an Automated Script
 
 This script is designed to automate the installation of n8n (using Docker) on an AlmaLinux server that already has FastPanel installed. The script will perform the following tasks:
