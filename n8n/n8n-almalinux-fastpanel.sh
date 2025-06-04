@@ -21,7 +21,6 @@ print_banner() {
 check_error() {
     if [ $? -ne 0 ]; then
         echo -e "${RED}Loi: $1${NC}"
-        # Doc loi tu terminal neu co van de voi stdin
         echo -e "${RED}Nhan Enter de thoat.${NC}"
         read < /dev/tty
         exit 1
@@ -34,28 +33,22 @@ install_docker() {
         echo -e "${GREEN}Docker da duoc cai dat.${NC}"
     else
         echo -e "${YELLOW}Dang cai dat Docker...${NC}"
-        
         sudo dnf install -y dnf-utils
         check_error "Khong the cai dat dnf-utils"
         sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
         check_error "Khong the them Docker repo"
         sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         check_error "Khong the cai dat Docker (bao gom docker-compose-plugin)"
-        
         sudo systemctl enable docker
         check_error "Khong the kich hoat Docker service"
         sudo systemctl start docker
         check_error "Khong the khoi dong Docker service"
-        
         echo -e "${CYAN}Dang cho Docker khoi dong...${NC}"
         timeout 30s bash -c 'until sudo docker info &>/dev/null; do sleep 2; done'
         check_error "Docker khong khoi dong duoc sau 30 giay"
-        
         echo -e "${GREEN}Docker da san sang!${NC}"
     fi
 
-    # Kiem tra va cai dat Docker Compose standalone neu docker compose (plugin) khong chay voi sudo
-    # hoac neu docker-compose (standalone) chua co
     if ! sudo docker compose version &>/dev/null || ! command -v /usr/local/bin/docker-compose &>/dev/null ; then
         echo -e "${YELLOW}Dang cai dat/kiem tra Docker Compose (standalone)...${NC}"
         sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -73,29 +66,50 @@ install_docker() {
     fi
 }
 
+# Ham dung va xoa container/volume (neu can)
+cleanup_services_data() {
+    echo -e "${YELLOW}Ban co muon xoa sach du lieu PostgreSQL cu va container de khoi tao lai?${NC}"
+    echo -e "${RED}CANH BAO: Thao tac nay se XOA TOAN BO DU LIEU n8n va PostgreSQL hien tai (neu co).${NC}"
+    echo -e -n "${CYAN}Chon (y/n): ${NC}"
+    read -r confirm_cleanup < /dev/tty
+
+    if [[ "$confirm_cleanup" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Dang dung va xoa cac container cu...${NC}"
+        if sudo docker compose version &>/dev/null; then
+            sudo docker compose down -v --remove-orphans # -v se xoa volume
+        elif command -v /usr/local/bin/docker-compose &>/dev/null; then
+            sudo /usr/local/bin/docker-compose down -v --remove-orphans # -v se xoa volume
+        else
+            echo -e "${RED}Khong tim thay lenh docker compose/docker-compose de dung service.${NC}"
+        fi
+        echo -e "${GREEN}Da dung va xoa container cung volume (neu co).${NC}"
+        # Xoa thu muc data tren host de dam bao sach se
+        if [ -d "./postgres_data" ]; then
+            echo -e "${YELLOW}Dang xoa thu muc ./postgres_data tren host...${NC}"
+            sudo rm -rf ./postgres_data
+        fi
+        if [ -d "./n8n_local_data" ]; then
+            echo -e "${YELLOW}Dang xoa thu muc ./n8n_local_data tren host...${NC}"
+            sudo rm -rf ./n8n_local_data
+        fi
+        echo -e "${GREEN}Da xoa thu muc data tren host.${NC}"
+    else
+        echo -e "${CYAN}Bo qua viec xoa du lieu cu. Se co gang khoi dong lai service.${NC}"
+    fi
+}
+
+
 # Ham cau hinh va khoi chay n8n
 configure_n8n() {
     echo -e "${YELLOW}Dang cau hinh n8n...${NC}"
     
-    # Tao thu muc
-    mkdir -p ~/n8n_data
-    cd ~/n8n_data || exit 1
-    
-    # Kiem tra neu docker-compose.yml da ton tai
-    if [ -f "docker-compose.yml" ]; then
-        echo -e -n "${YELLOW}Phat hien file docker-compose.yml cu. Ban co muon tao lai? (y/n)${NC} "
-        read -r create_new < /dev/tty
-        if [[ ! "$create_new" =~ ^[Yy]$ ]]; then
-            echo -e "${CYAN}Giu lai file cu.${NC}"
-            # Khong lam gi ca, se khoi dong lai o duoi
-        else
-             echo -e "${CYAN}Se tao lai file docker-compose.yml.${NC}"
-        fi
-    fi
+    cd ~/n8n_data || { echo -e "${RED}Khong tim thay thu muc ~/n8n_data. Tao moi..."; mkdir -p ~/n8n_data; cd ~/n8n_data || exit 1; }
 
-    # Chi tao file docker-compose.yml neu khong ton tai hoac nguoi dung chon tao lai
-    if [ ! -f "docker-compose.yml" ] || [[ "$create_new" =~ ^[Yy]$ ]]; then
-        echo -e "${CYAN}Tao file docker-compose.yml...${NC}"
+    # Hoi nguoi dung co muon xoa data cu khong
+    cleanup_services_data
+
+    # Luon tao lai file docker-compose.yml de dam bao cau hinh moi nhat
+    echo -e "${CYAN}Tao/Cap nhat file docker-compose.yml...${NC}"
 cat > docker-compose.yml <<EOL
 services:
   postgres:
@@ -134,13 +148,11 @@ services:
       - WEBHOOK_URL=https://${DOMAIN}/
       - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
       - TZ=Asia/Ho_Chi_Minh
-      # Them bien moi truong de n8n biet UID/GID cua user tren host de su dung cho volume
-      # Tuy nhien, cach tot hon la chown thu muc tren host
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false # Bo qua canh bao quyen file config
     depends_on:
       - postgres
     volumes:
       - ./n8n_local_data:/home/node/.n8n 
-      # Quan trong: /home/node/.n8n la noi n8n luu tru data ben trong container
     networks:
       - n8n-network
 
@@ -148,41 +160,37 @@ networks:
   n8n-network:
 
 volumes:
-  postgres_data:
-  n8n_local_data: 
-  # Khai bao volume o day de Docker quan ly, nhung chung ta dang dung bind mount
-  # Voi bind mount, Docker se tao thu muc tren host neu chua co, voi quyen root
-  # Do do can chown sau do
+  postgres_data: # Docker se tu tao volume nay neu no la named volume
+  n8n_local_data: # Tuong tu
 EOL
-    fi
     
     # Tao thu muc data tren host NEU CHUA CO va set quyen
     echo -e "${CYAN}Dam bao quyen cho thu muc data...${NC}"
     if [ ! -d "./n8n_local_data" ]; then
-        mkdir ./n8n_local_data
+        mkdir -p ./n8n_local_data # Them -p de tao neu parent chua co
         check_error "Khong the tao thu muc ./n8n_local_data"
     fi
     sudo chown -R 1000:1000 ./n8n_local_data
     check_error "Khong the thay doi quyen so huu cho ./n8n_local_data (cho user UID 1000)"
 
     if [ ! -d "./postgres_data" ]; then
-        mkdir ./postgres_data
+        mkdir -p ./postgres_data
         check_error "Khong the tao thu muc ./postgres_data"
     fi
-    # Docker image cua Postgres thuong tu quan ly quyen cho volume data cua no.
+    # Khong can chown cho postgres_data, image postgres tu xu ly
 
     echo -e "${CYAN}Khoi chay/khoi dong lai n8n va postgres...${NC}"
-    # Thu voi docker compose plugin truoc, neu loi thi dung standalone
     if sudo docker compose version &>/dev/null; then
-        sudo docker compose up -d --remove-orphans
+        sudo docker compose up -d --remove-orphans --force-recreate # Them --force-recreate de dam bao container postgres duoc tao lai
     elif command -v /usr/local/bin/docker-compose &>/dev/null; then
-        sudo /usr/local/bin/docker-compose up -d --remove-orphans
+        sudo /usr/local/bin/docker-compose up -d --remove-orphans --force-recreate
     else
         check_error "Khong tim thay lenh docker compose hoac docker-compose de khoi chay container."
     fi
     check_error "Khong the khoi chay cac container"
     
     echo -e "${GREEN}Cai dat/Khoi dong container n8n thanh cong!${NC}"
+    echo -e "${YELLOW}Luu y: PostgreSQL co the can vai phut de khoi tao database lan dau.${NC}"
 }
 
 # Ham chinh
@@ -192,7 +200,6 @@ main() {
     
     echo -e "${PURPLE}Vui long nhap cac thong tin de cau hinh n8n:${NC}"
 
-    # SU DUNG < /dev/tty DE DOC TRUC TIEP TU TERMINAL
     echo -e -n "${CYAN}Nhap domain ban se su dung (vi du: n8n.yourdomain.com): ${NC}"
     read DOMAIN < /dev/tty
     
@@ -201,7 +208,7 @@ main() {
     
     echo -e -n "${CYAN}Nhap n8n password: ${NC}"
     read -s N8N_PASS < /dev/tty
-    echo # Xuong dong sau khi nhap pass
+    echo 
     
     echo -e -n "${CYAN}Nhap ten database (vi du: n8n_db): ${NC}"
     read DB_NAME < /dev/tty
@@ -211,13 +218,16 @@ main() {
     
     echo -e -n "${CYAN}Nhap mat khau database: ${NC}"
     read -s DB_PASS < /dev/tty
-    echo # Xuong dong sau khi nhap pass
+    echo 
 
     if [[ -z "$DOMAIN" || -z "$N8N_USER" || -z "$N8N_PASS" || -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" ]]; then
         echo -e "${RED}Loi: Vui long cung cap tat ca thong tin can thiet${NC}"
         exit 1
     fi
     
+    # Export bien de docker-compose.yml co the su dung
+    export DB_USER DB_PASS DB_NAME N8N_USER N8N_PASS DOMAIN
+
     echo -e "\n${PURPLE}Bat dau qua trinh cai dat...${NC}\n"
     
     install_docker
@@ -230,10 +240,14 @@ main() {
     echo -e "${CYAN}Domain:${NC} https://${DOMAIN}"
     echo -e "${CYAN}n8n User:${NC} ${N8N_USER}"
     echo -e "${CYAN}n8n Pass:${NC} ******* (Da an)"
+    echo -e "${CYAN}DB User:${NC} ${DB_USER}"
+    echo -e "${CYAN}DB Pass:${NC} ******* (Da an)"
+    echo -e "${CYAN}DB Name:${NC} ${DB_NAME}"
     echo -e "${YELLOW}n8n dang chay tai dia chi local: http://127.0.0.1:5678${NC}"
     echo -e "\n${RED}VIEC CAN LAM TIEP THEO:${NC}"
     echo -e "${PURPLE}==> Thuc hien cac buoc cau hinh Reverse Proxy trong FastPanel!${NC}"
     echo -e "${PURPLE}==> Kiem tra log Docker neu gap su co: sudo docker logs n8n${NC}"
+    echo -e "${PURPLE}==> Doi vai phut de PostgreSQL khoi tao, sau do kiem tra lai.${NC}"
 }
 
 main
