@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Kịch bản Đa Chức Năng Quản Lý Docker cho AlmaLinux 8.10
-# Tác giả: [Tên Của Bạn hoặc Bỏ Trống]
+# Tác giả: trangc0der
 # Phiên bản: 1.0
 
 # --- KIỂM TRA QUYỀN ROOT ---
