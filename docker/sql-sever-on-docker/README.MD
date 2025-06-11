@@ -14,11 +14,12 @@ Before running this script, you must have the following software installed and r
 
 ## Usage
 
-1.  **Clone the repository or download the script.**
-    ```bash
-    git clone https://github.com/trangc0der/trangc0der-tools.git
-    cd trangc0der-tools/docker/sql-sever-on-docker
-    ```
+1.  Connect to your server via SSH and download the installation script from GitHub using `wget` or `curl`.
+
+```bash
+wget https://raw.githubusercontent.com/trangc0der/trangc0der-tools/main/docker/sql-sever-on-docker/install-sql-sever-2019-on-docker.sh
+```
+
 2.  **Make the script executable:**
     ```bash
     chmod +x install-sql-sever-2019-on-docker.sh
